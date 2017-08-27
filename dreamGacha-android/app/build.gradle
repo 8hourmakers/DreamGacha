@@ -37,4 +37,6 @@ dependencies {
     compile 'com.android.support.constraint:constraint-layout:+'
     testCompile 'junit:junit:4.12'
 
+    //record lib
+    compile 'com.googlecode.mp4parser:isoparser:1.0.2'
 }
