@@ -18,7 +18,7 @@ public class ServiceGenerator implements NetDefine {
 	private static String token = "";
 	private static HttpLoggingInterceptor logging;
 
-	private static okhttp3.OkHttpClient httpClient = new okhttp3.OkHttpClient.Builder().build();
+	private static okhttp3.OkHttpClient httpClient = null;
 	private static Retrofit.Builder builder =
 			new Retrofit.Builder()
 					.baseUrl( BASIC_PATH )
@@ -42,6 +42,10 @@ public class ServiceGenerator implements NetDefine {
 		if ( logging == null ) {
 			logging = new HttpLoggingInterceptor();
 			logging.setLevel( HttpLoggingInterceptor.Level.BODY );
+		}
+
+		if(httpClient == null){
+			new okhttp3.OkHttpClient.Builder().addInterceptor(logging).build();
 		}
 		isFile = bool;
 		return createService( serviceClass, token );

@@ -1,8 +1,13 @@
 package com.eighthour.makers.dreamgacha_android.network;
 
 
+import com.eighthour.makers.dreamgacha_android.network.reponse.RecordResponse;
+
+import okhttp3.MultipartBody;
 import retrofit2.Call;
 import retrofit2.http.GET;
+import retrofit2.http.Multipart;
+import retrofit2.http.POST;
 
 
 /**
@@ -11,8 +16,8 @@ import retrofit2.http.GET;
 
 public interface ApiService {
 
-	@GET
-	Call<String> getStrings();
+    @GET
+    Call<String> getStrings();
 
 
 //	@Multipart
@@ -28,4 +33,10 @@ public interface ApiService {
 //													 @Query( "agent" ) String agent,
 //													 @Query( "device_id" ) String device_id
 //	);
+
+    @Multipart
+    @POST("dreams/")
+    retrofit2.Call<RecordResponse> saveRecord(
+            @retrofit2.http.Part("description") okhttp3.RequestBody description,
+            @retrofit2.http.Part MultipartBody.Part recordFileName);
 }
