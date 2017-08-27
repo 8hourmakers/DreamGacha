@@ -1,3 +1,8 @@
 <resources>
-	<string name="app_name">dreamGacha-android</string>
+    <string name="app_name">dreamGacha-android</string>
+    <string name="error_audio_recorder">오디오 저장 에러</string>
+    <string name="error_no_permissions">권한이 없습니다</string>
+    <string name="audio_db_title_format">오디오 타이틀 파일 포멧 불일치</string>
+    <string name="audio_db_artist_name">오디오 아티스트 이름</string>
+    <string name="audio_db_album_name">오디오 앨범 이름</string>
 </resources>
