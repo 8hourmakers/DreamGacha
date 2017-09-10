@@ -7,6 +7,7 @@ import android.util.Log;
 import com.google.gson.GsonBuilder;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Retrofit;
@@ -48,6 +49,9 @@ public class ServiceGenerator implements NetDefine {
 			new okhttp3.OkHttpClient.Builder().addInterceptor(logging).build();
 		}
 		isFile = bool;
+
+		//@TODO 임시로 토큰 저장
+		token = "df1503a97f97ab911153b074535a196fc6a75b64";
 		return createService( serviceClass, token );
 	}
 
@@ -60,6 +64,8 @@ public class ServiceGenerator implements NetDefine {
 
 		if ( authToken != null ) {
 			httpClient = new okhttp3.OkHttpClient.Builder()
+					.connectTimeout(100, TimeUnit.SECONDS)
+					.readTimeout(100,TimeUnit.SECONDS)
 					.addInterceptor( logging )
 					.addInterceptor( new okhttp3.Interceptor() {
 
@@ -74,7 +80,7 @@ public class ServiceGenerator implements NetDefine {
 									.method( original.method(), original.body() );
 							if ( authToken.length() != 0 ) {
 								requestBuilder = original.newBuilder()
-										.header( "Authorization", "JWT " + authToken )
+										.header( "Authorization", "Token " + authToken )
 										.header( "Content-Type", "application/json" )
 										.method( original.method(), original.body() );
 							}

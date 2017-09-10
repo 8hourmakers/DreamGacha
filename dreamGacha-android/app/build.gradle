@@ -39,4 +39,7 @@ dependencies {
 
     //record lib
     compile 'com.googlecode.mp4parser:isoparser:1.0.2'
+
+    compile 'com.github.Triggertrap:SeekArc:v1.1'
+    compile 'com.github.adrielcafe:AndroidAudioConverter:0.0.8'
 }

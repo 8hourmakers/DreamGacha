@@ -3,8 +3,10 @@ package com.eighthour.makers.dreamgacha_android.util;
 import android.content.Context;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
+import android.net.Uri;
 import android.os.Environment;
 import android.util.Log;
+import android.view.View;
 import android.widget.Toast;
 
 import com.coremedia.iso.boxes.Container;
@@ -13,13 +15,18 @@ import com.googlecode.mp4parser.authoring.Track;
 import com.googlecode.mp4parser.authoring.builder.DefaultMp4Builder;
 import com.googlecode.mp4parser.authoring.container.mp4.MovieCreator;
 import com.googlecode.mp4parser.authoring.tracks.AppendTrack;
+import com.triggertrap.seekarc.SeekArc;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -27,6 +34,10 @@ import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
+
+import cafe.adriel.androidaudioconverter.AndroidAudioConverter;
+import cafe.adriel.androidaudioconverter.callback.IConvertCallback;
+import cafe.adriel.androidaudioconverter.model.AudioFormat;
 
 /**
  * 녹음을 하는 실질적 객체
@@ -38,19 +49,25 @@ public class RecordUtil {
     public final static int STATE_RECORDING = 1;    //녹음 중
     public final static int STATE_PAUSE = 2;        // 일시 정지 중
 
+    public final static int STATE_AUDIO_START = 3;     //오디오 시작
+    public final static int STATE_AUDIO_STOP = 4;    //오디오 정지
+
     //결과 파일
     public File resultFile;
     //결과 파일 경로
     public String resultFilePath;
     //녹음 파일 명
-    private String rname;
+    private String rname = "dream";
     //일시 중지하는 동안 저장된 파일 수
     private int count;
     //현재 오디오 상태
-    public int state;
+    public int recordState = STATE_PAUSE;
+    public int audioState = STATE_AUDIO_STOP;
 
-    MediaRecorder mediaRecorder;
-    MediaPlayer mediaPlayer;
+    public MediaRecorder mediaRecorder;
+    public MediaPlayer mediaPlayer;
+
+    public int mCurrentMin= 0;
 
     String audioSaveDirInDevice = null;
     String audioSavePathInDevice = null;
@@ -58,6 +75,7 @@ public class RecordUtil {
     Random random;
 
     Context context;
+    SeekArc seekArc;
 
     private ArrayList<String> outputFileList;   // 임시 저장 파일 리스트
 
@@ -77,8 +95,9 @@ public class RecordUtil {
         mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
         mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
         mediaRecorder.setAudioEncoder(MediaRecorder.OutputFormat.AMR_NB);
-        mediaRecorder.setAudioEncodingBitRate(320000);
+        mediaRecorder.setAudioEncodingBitRate(16000);
         mediaRecorder.setAudioSamplingRate(44100);
+        mediaRecorder.setAudioChannels(1);
         mediaRecorder.setOutputFile(audioSavePathInDevice);
 
 //        myAudioRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4); //저장 방식 MPEG4
@@ -96,7 +115,7 @@ public class RecordUtil {
 
         audioSaveDirInDevice =
                 Environment.getExternalStorageDirectory().getAbsolutePath() + "/temp/";//임시 파일 저장 경로
-        audioSavePathInDevice = audioSaveDirInDevice + count + ".mp4"; // 파일 명 (no) .mp4
+        audioSavePathInDevice = audioSaveDirInDevice + count + ".wav"; // 파일 명 (no) .wav
 
         //디렉토리 존재 유무 체크
         File dir = new File(audioSaveDirInDevice);
@@ -119,7 +138,7 @@ public class RecordUtil {
             e.printStackTrace();
         }
 
-        state = STATE_RECORDING; //녹음 중 상태로 바꿈
+        recordState = STATE_RECORDING; //녹음 중 상태로 바꿈
 
     }
 
@@ -128,10 +147,10 @@ public class RecordUtil {
      */
     public void stop() {
 
-        if (state == STATE_PREV) {     //
+        if (recordState == STATE_PREV) {     //
             //녹음 시작안한 상태에서 정지 버튼 누르기
             return;
-        } else if (state == STATE_PAUSE) {
+        } else if (recordState == STATE_PAUSE) {
             //일시 정지 상태일 때,
         } else {
             // 재생 중 정지 버튼을 눌렀을 때 = 정상 작동
@@ -175,23 +194,40 @@ public class RecordUtil {
         mediaRecorder.reset();
         mediaRecorder.release();
         mediaRecorder = null;
-        state = STATE_PAUSE;
+        recordState = STATE_PAUSE;
+
+        try {
+            append(outputFileList);     //현재 임시 파일 리스트에 있는 파일들을 하나로 합침( 최종 결과파일)
+        } catch (IOException e) {
+            Toast.makeText(context, "Append Error!!", Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
+        }
+
+        saveResultFile();
 
     }
 
     /**
      * audio 재생
      */
-    public void audioPlay(){
+    public void audioPlay(final View btn){
         mediaPlayer = new MediaPlayer();
         try {
             mediaPlayer.setDataSource(getResultFilePath());
             mediaPlayer.prepare();
+            audioState = STATE_AUDIO_START;
         }catch (IOException e) {
             e.printStackTrace();
         }
 
         mediaPlayer.start();
+
+        mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+
+            public void onCompletion(MediaPlayer mp) {
+                btn.performClick();
+            }
+        });
     }
 
     /**
@@ -202,9 +238,34 @@ public class RecordUtil {
             mediaPlayer.stop();
             mediaPlayer.release();
             mediaRecorderReady();
+            audioState = STATE_AUDIO_STOP;
         }
 
     }
+
+    /**
+     * 결과 음성 파일의 음성 길이를 반환한다
+     * @return
+     */
+    public int getResultFileDuration(){
+        MediaPlayer mp = MediaPlayer.create(context, Uri.parse(getResultFile().toURI().toString()));
+        return mp.getDuration();
+    }
+
+    public void convertFileToWav(IConvertCallback callback){
+
+        AndroidAudioConverter.with(context)
+        // Your current audio file
+        .setFile(resultFile)
+        // Your desired audio format
+        .setFormat(AudioFormat.WAV)
+        // An callback to know when conversion is finished
+        .setCallback(callback)
+        // Start conversion
+        .convert();
+
+    }
+
 
     public File getResultFile(){
         return resultFile;
@@ -267,7 +328,8 @@ public class RecordUtil {
 
         Container out = new DefaultMp4Builder().build(result);
 
-        RandomAccessFile ram = new RandomAccessFile(String.format(Environment.getExternalStorageDirectory() + "/output.mp4"), "rw");
+
+        RandomAccessFile ram = new RandomAccessFile(String.format(Environment.getExternalStorageDirectory() + "/output.wav"), "rw");
         //최종적으로 output.mp4 라는 파일로 다 합친 파일을 저장하게 됨
         FileChannel fc = ram.getChannel();
         out.writeContainer(fc);
@@ -293,11 +355,10 @@ public class RecordUtil {
         String rName = name + "_" + strDate + "-" + date.getHours() + "-" + date.getMinutes();
 
         //file1 -> file2 로 복사
-        String outPath = Environment.getExternalStorageDirectory() + "/output.mp4";
+        String outPath = Environment.getExternalStorageDirectory() + "/output.wav";
         File file = new File(outPath);
-        resultFilePath = context.getExternalFilesDir(Environment.DIRECTORY_MUSIC).getAbsolutePath() + "/" + rName + ".mp4";
+        resultFilePath = context.getExternalFilesDir(Environment.DIRECTORY_MUSIC).getAbsolutePath() + "/" + rName + ".wav";
         Log.d("PATH_TEST", context.getExternalFilesDir(Environment.DIRECTORY_MUSIC).getAbsolutePath());
-
 
         MediaPlayer mp = new MediaPlayer();
         try {
@@ -341,5 +402,7 @@ public class RecordUtil {
         resultFile = file2;
 
     }
+
+
 
 }

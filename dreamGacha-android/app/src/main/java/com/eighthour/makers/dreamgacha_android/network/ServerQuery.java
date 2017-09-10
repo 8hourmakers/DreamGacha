@@ -36,6 +36,11 @@ public class ServerQuery {
 		call.enqueue( callback );
 	}
 
+	public static void saveDream(String title, String content, String dreamAudioUrl , Callback callback){
+		retrofit2.Call<RecordResponse> call = ServiceGenerator.createService( ApiService.class, true ).saveDream(title, content, dreamAudioUrl);
+		call.enqueue( callback );
+	}
+
 //	public static void goRegister( int kind, String email, String nickName, String password, String gender, String birthDay, File profileImage, String device_id, retrofit2.Callback callback ) {
 //
 //		okhttp3.RequestBody requestBody = null;

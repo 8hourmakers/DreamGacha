@@ -5,9 +5,13 @@ import com.eighthour.makers.dreamgacha_android.network.reponse.RecordResponse;
 
 import okhttp3.MultipartBody;
 import retrofit2.Call;
+import retrofit2.http.Body;
+import retrofit2.http.Field;
+import retrofit2.http.FormUrlEncoded;
 import retrofit2.http.GET;
 import retrofit2.http.Multipart;
 import retrofit2.http.POST;
+import retrofit2.http.Query;
 
 
 /**
@@ -35,8 +39,15 @@ public interface ApiService {
 //	);
 
     @Multipart
-    @POST("dreams/")
+    @POST("dreams/audio/")
     retrofit2.Call<RecordResponse> saveRecord(
             @retrofit2.http.Part("description") okhttp3.RequestBody description,
             @retrofit2.http.Part MultipartBody.Part recordFileName);
+
+    @FormUrlEncoded
+    @POST("dreams/")
+    retrofit2.Call<RecordResponse> saveDream(
+            @Field("dream_audio_url") String dream_audio_url,
+            @Field("title") String title,
+            @Field("content") String content);
 }
